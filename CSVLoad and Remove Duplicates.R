@@ -5,15 +5,34 @@ install.packages("tidyverse")
 library(tidyverse)
 library(magrittr)
 #Set the working Directory to RVeraAuto folder on G:Drive
-setwd("C:\Users\travi\OneDrive\Documents\Data Science\My R Workspace\R Projects\RVera Automation")
+setwd("C:/Users/travi/OneDrive/Documents/Data Science/My R Workspace/R Projects/RVera Automation")
+#setwd("C:\Users\travi\OneDrive\Documents\Data Science\My R Workspace\R Projects\RVera Automation")
 
 #Store current timestamp as 'now' to use in file name
 now <- format(Sys.time(), format = "%m.%d.%Y.%Hh %Mm %Ss")
 #print(now)
 
+# Tell R TO LOAD THE 3 FILES 
+part1_df <- read.csv("serv1VeraTest.csv")
+part2_df <- read.csv("serv2VeraTest.csv")
+part3_df <- read.csv("ActvVeraCumTest.csv")
+dim(part1_df)
+dim(part2_df)
+dim(part3_df)
+names(part3_df)
+
+# THEN REMOVE ADDITIONAL columns FROM ACTIVITIIES FILE. 
+part3_df <- subset(part3_df, select = -c(Active, Activity.Creator, Activity.Date))
+dim(part3_df)
+# THEN COMBINE THE 3 DATASETS with cbind?
+#?rbind
+megafile_df <- rbind(part1_df, part2_df, part3_df, make.row.names = TRUE)
+class(megafile_df)
 # Tell R to read the main services data report as well as other more 
 # focused report files from the directory.
-original_main_df <- read.csv("VeraMonthlyTest.csv")
+#### original_main_df <- read.csv("VeraMonthlyTest.csv") ####
+original_main_df <- megafile_df
+
 # alternatively 
 #original_main_df <- read.csv("VeraMonthlyTest.csv", na.strings=c(""," ","NA") )
 activities_df <- read.csv("VeraActivitiesTest.csv")
@@ -21,6 +40,8 @@ HasAttny_df <- read.csv("VeraAlertHasAttorneyTest.csv")
 Litig_df <- read.csv("LitigationTest.csv")
 main_df <- original_main_df
 main_df2 <- main_df
+
+
 #View(main_df)
 #str(main_df2)
 
@@ -99,9 +120,11 @@ activities_uniq_df <- activities_uniq_df[order(activities_uniq_df$Item, activiti
 # FORMAT THE DATE to American style baby! 
 # ***Important for this Formatting to happen AFTER its already been sorted***
 # because the sort order for dates depends on which format you chose, doesn't default to chronological sorting #DUMB
-activities_uniq_df$Activity.Date <- format(activities_uniq_df$Activity.Date, "%m/%d/%Y")
+activities_uniq_df$Activity.Date <-as.Date(activities_uniq_df$Activity.Date, format = "%m/%d/%Y")
 #view(head(activities_uniq_df, 50))
-
+class(activities_uniq_df$Activity.Date)
+head(activities_uniq_df$Activity.Date)
+summary(activities_uniq_df$Activity.Date)
 # SUBSETTING THE ACTIVITIES in order to import the dates into req'd fields.
 
 #Create a subset of the main activities_uniq dataframe that only contains "Follow Up" activities. 
@@ -137,16 +160,20 @@ RefYoungCSub <- activities_uniq_df[activities_uniq_df$Item == "Young Center Refe
 #FOLLOW UPS
 
 #1st do a Precheck of what the values look like before importing
-main_df2[c(35:39, 7001), c(27, 104)]
-names(main_df2[c(27, 104)])
+which( colnames(main_df2) == "date_first_followup")
+which( colnames(main_df2) == "Activity.Date")
+main_df2[c(35:39, 7001), c(26, 104)]
+#names(main_df2[c(26, 100:102)])
 
 #2nd pull all of the desired fields in
 main_df2 <- merge(main_df2, FollowUpSub[ , c("Item", "Activity.Date", "Case.ID")],
                         by.x = "Matter.Case.ID.", by.y = "Case.ID", all.x = TRUE)
 
+which( colnames(main_df2) == "Activity.Date")
+
 #3rd Re-Format the activity and followup dates because the merge causes date to go back to factor
-main_df2$Activity.Date.x <-as.Date(main_df2$Activity.Date.x, format = "%m/%d/%Y")
-class(main_df2$Activity.Date.x)
+main_df2$Activity.Date.x <-as.Date(main_df2$Activity.Date, format = "%m/%d/%Y")
+class(main_df2$Activity.Date)
 
 main_df2$date_first_followup <-as.Date(main_df2$date_first_followup, format = "%m/%d/%Y")
 class(main_df2$date_first_followup)
@@ -160,13 +187,14 @@ main_df2$date_first_followup <- ifelse(is.na(main_df2$date_first_followup), main
                                              ifelse(main_df2$date_first_followup > main_df2$Activity.Date.x, 
                                                     main_df2$Activity.Date.x, main_df2$date_first_followup )
 )
+
 #The above step messes with followup date format again so may have to re-class it. Question for Celia, does
 #the format of dates affect what date is considered less than or greatear than another?
 class(main_df2$date_first_followup) <- "Date"
 
 #Confirm successful replacements
-main_df2[c(35:39, 7001), c(27, 104)]
-names(main_df2[c(27, 104)])
+main_df2[c(35:39, 7001), c(26, 104)]
+names(main_df2[c(22, 104)])
 
 dim(main_df)
 dim(main_df2)
@@ -1101,6 +1129,11 @@ summary(main_df2$date_vol_ngo)
 
 #---------------------------------------------------------------------------------------------------------
 which( !is.na(main_df2$date_childadvocate), arr.ind=TRUE)
+
+main_df2 <- main_df2[order(-main_df2$new_a_number),]
+view(head(main_df2, 50))
+
+
 class(main_df3$filing1_date)
 class(main_df3$filing1_date) <- "Date"
 class(main_df3$filing2_date) <- "Date"

@@ -4,6 +4,7 @@ install.packages("tidyverse")
 #Add Library that enable removing duplicates
 library(tidyverse)
 library(magrittr)
+library(ggplot2)
 #Set the working Directory to RVeraAuto folder on G:Drive
 #setwd("C:/Users/travi/OneDrive/Documents/Data Science/My R Workspace/R Projects/RVera Automation")
 setwd("G:/My Drive/RVeraAuto")
@@ -187,6 +188,8 @@ class(main_df2$Activity.Date)
 
 main_df2$date_first_followup <-as.Date(main_df2$date_first_followup, format = "%m/%d/%Y")
 class(main_df2$date_first_followup)
+
+
 
 #class(main_df2$date_first_followup) <- "Date"
 
@@ -864,6 +867,20 @@ main_df2 <- main_df2 %>%
   
   mutate(
     pot_rel1 = ifelse(
+      !is.na(date_first_indiv) & is.na(pot_rel1), 
+      "PENDING", 
+      pot_rel1)
+  )
+summary(as.factor(main_df2$pot_rel1))
+#str(main_df2)
+#
+# If screening date is NOT null, but potential relief is, store pot_rel as PENDING
+main_df2 <- main_df2 %>%
+  
+  mutate(pot_rel1 = as.character(pot_rel1)) %>%
+  
+  mutate(
+    pot_rel1 = ifelse(
       date_first_indiv != "" & pot_rel1 == "", 
       "PENDING", 
       pot_rel1)
@@ -871,6 +888,10 @@ main_df2 <- main_df2 %>%
 
 summary(as.factor(main_df2$pot_rel1))
 #str(main_df2)
+
+
+
+#
 length(main_df2)
 
 #### Change Checkbox values to True/False ####
@@ -1218,6 +1239,72 @@ summary(main_df2$date_vol_ngo)
 
 #Done taking out 'n/a's!!!
 
+#Store dates as dates so chart runs correctly
+main_df2$date_first_indiv <-as.Date(main_df2$date_first_indiv, format = "%m/%d/%Y")
+class(main_df2$date_first_indiv)
+
+main_df2$date_first_KYR <-as.Date(main_df2$date_first_KYR, format = "%m/%d/%Y")
+class(main_df2$date_first_KYR)
+
+#### Charts & Summaries ####
+
+# Store first and last days of previous month to easily refer to in pot_rel range
+
+library(lubridate)
+
+currentDate <- Sys.Date()
+
+end_last_month <- rollback(currentDate)
+
+begin_last_month <- rollback(end_last_month, roll_to_first = TRUE)
+
+current_month_name <- format(Sys.Date(), format = "%B")
+current_month_name
+
+previous_month_name <- format(begin_last_month, format = "%B")
+previous_month_name
+
+#Create a small data frame of pot_rel1 and counts, order descending by frequency of values
+
+# https://stackoverflow.com/questions/34984132/plot-non-numeric-data
+df_pot_rels_monthly <-
+  main_df2[!is.na(main_df2$date_first_indiv) & (main_df2$date_first_indiv >= begin_last_month & main_df2$date_first_indiv <= end_last_month),]   %>% # Pipe df into group_by
+  group_by(pot_rel1)              %>% # grouping by 'pot_rel' column
+  summarise(relief_count = n())     # calculate the name count for each group
+## 'df_summary' now contains the summary data for each 'type'
+#reorder the data so that it's descending.
+df_pot_rels_monthly <- df_pot_rels_monthly[order(-df_pot_rels_monthly$relief_count),]
+df_pot_rels_monthly
+
+
+#random color index generator, so we don't have to think about a new color each time
+randomcolor <- runif(3, max = 4)/4
+p_monthly_pot_rel <- ggplot(df_pot_rels_monthly, aes(x = reorder(pot_rel1, -relief_count), y = relief_count)) +  # 
+  geom_bar(stat = 'identity', fill = do.call(rgb, as.list(randomcolor)), color = 'darkred')       +       # stat='identity' is used for summarized data.
+  geom_text(aes(label = relief_count), vjust = -1) +
+  labs(title = 'Potential Reliefs', subtitle = previous_month_name )
+
+p_monthly_pot_rel
+
+#### Unnecessary plot of cumulative reliefs ####
+df_pot_rels_cum <-
+  main_df2[!is.na(main_df2$date_first_indiv), ]           %>% # Pipe df into group_by
+  group_by(pot_rel1)              %>% # grouping by 'pot_rel' column
+  summarise(name_count = n())     # calculate the name count for each group
+## 'df_summary' now contains the summary data for each 'type'
+#reorder the data so that it's descending.
+df_pot_rels_cum <- df_pot_rels_cum[order(-df_pot_rels_cum$name_count),]
+df_pot_rels_cum
+
+#random color index generator, so we don't have to think about a new color each time
+randomcolor <- runif(3, max = 4)/4
+p_cumulative_pot_rel <- ggplot(df_pot_rels_cum, aes(x = reorder(pot_rel1, -name_count), y = name_count)) +  # 
+  geom_bar(stat = 'identity', fill = do.call(rgb, as.list(randomcolor)), color = 'darkred')       +       # stat='identity' is used for summarized data.
+  geom_text(aes(label = name_count), vjust = -1) +
+  labs(title = 'Potential Reliefs', subtitle = 'Cumulative' )
+
+p_cumulative_pot_rel
+
 
 
 #### Testing Zone #Testing Zone #Testing Zone #Testing Zone #Testing Zone #Testing Zone ####
@@ -1235,11 +1322,89 @@ summary(main_df2$date_vol_ngo)
 #Testing Zone
 #---------------------------------------------------------------------------------------------------------
 # test code goes here.
+
+
+class(main_df2$date_first_indiv)
+class(main_df2$pot_rel1)
+class(main_df2$pot_rel1) <- "Factor"
+class(main_df2$pot_rel1)
 # # Format 8 digit A#s as characters with the leading 0. This  didn't work. Nor did an as.character  paste0 approach work.
 #summary(main_df2$a_number)
 #class(main_df2$a_number)
 #main_df2$a_number <- formatC(main_df2$a_number, width = 9, format = "d", flag = "0")
 # 
+
+
+
+# A tibble: 15 x 2
+# pot_rel1                 name_count
+# <chr>                         <int>
+# 1 ASYLUM                         8154
+# 2 ASYLUM WITHHOLDING               30
+# 3 CITIZENSHIP                       2
+# 4 DACA                              3
+# 5 Family Petition                  22
+# 6 OTHER                           143
+# 7 PENDING                         545
+# 8 Prosecutorial Discretion          2
+# 9 SIJ                            7196
+# 10 T VISA                           43
+# 11 TPS                               2
+# 12 U VISA                           32
+# 13 UNKNOWN                       19655
+# 14 VAWA                              1
+# 15 NA                            30738 #actually took these out with the is.na... something
+
+df_sumsum <-
+  df_summary[!is.na(main_df2$pot_rel1),]
+
+### Two ways to plot using ggplot
+
+## (1) Plot pre summarized data: 'df_summary'.
+p1 <- ggplot(df_summary, aes(pot_rel1, name_count)) +  # 
+  geom_bar(stat = 'identity')           # stat='identity' is used for summarized data.
+  geom_text(aes(label = name_count), vjust = -1) +
+  ggtitle('Cumulative Potential Reliefs')
+
+#random color index generator
+randomcolor <- runif(3, max = 4)/4
+p2.0 <- ggplot(df_summary, aes(x = reorder(pot_rel1, -name_count), y = name_count)) +  # 
+  geom_bar(stat = 'identity', fill = do.call(rgb, as.list(randomcolor)), color = 'darkred')       +    # stat='identity' is used for summarized data.
+  geom_text(aes(label = name_count), vjust = -1) +
+  ggtitle('Cumulative Potential Reliefs')
+
+p2.0
+  
+  
+p2.3 <- ggplot(df_summary, aes(x = reorder(pot_rel1, -name_count), y = name_count)) +  # 
+  geom_bar(stat = 'identity')       +       # stat='identity' is used for summarized data.
+  geom_text(aes(label = name_count), vjust = -1) +
+  labs(title = 'Potential Reliefs', subtitle = previous_month_name )
+
+p2.3
+
+
+
+
+## (2) Bar plot on original data frame (not summarised)
+p1 <- ggplot(main_df2[!is.na(main_df2$pot_rel1),], aes(main_df2$pot_rel1[!is.na(main_df2$pot_rel1)]), )      +
+  geom_bar()             + # 'stat' isn't needed here.
+  labs(x = 'Potential Relief', 'count of children' , y = 'count of children') +
+  geom_text( stat = 'count', aes(label = ..count..), vjust = -1) +
+  ggtitle('Cumulative Pot_Rels')
+
+p2 <- ggplot(main_df2[!is.na(main_df2$pot_rel1),], aes(main_df2$pot_rel1[!is.na(main_df2$pot_rel1)]), )      +
+  geom_bar()             + # 'stat' isn't needed here.
+  labs(x = 'Potential Relief' , y = 'count of children', ordered('count of children')) +
+  geom_text( stat = 'count', aes(label = ..count..), vjust = -1) +
+  ggtitle('Cumulative Pot_Rels')
+
+
+
+help(geom_bar)
+
+
+
 # # Three years ago, we launched the great American comeback. Tonight, I stand before you to share the incredible results. 
 # Jobs are booming, incomes are soaring, poverty is plummeting, crime is falling, confidence is surging, and our country is thriving 
 # and highly respected again! America's enemies are on the run, America's fortunes are on the rise, and America's future is blazing bright.

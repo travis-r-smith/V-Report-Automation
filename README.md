@@ -1,2 +1,2 @@
-# Vera-Report-Automation
-Automating all formatting involved in monthly Vera Report
+# Funder-Report-Automation
+Automating all formatting involved in monthly Funder Report

@@ -5,50 +5,56 @@ install.packages("tidyverse")
 library(tidyverse)
 library(magrittr)
 library(ggplot2)
-#Set the working Directory to RVeraAuto folder on G:Drive
-#setwd("C:/Users/travi/OneDrive/Documents/Data Science/My R Workspace/R Projects/RVera Automation")
-setwd("G:/My Drive/RVeraAuto")
 
-#Store current timestamp as 'now' to use in file name
+#Set the working Directory to RFunderAuto folder on G:Drive
+
+setwd("G:/My Drive/RFunderAuto")
+
+#Store current timestamp as 'now' to use later in file export name
 now <- format(Sys.time(), format = "%m.%d.%Y.%Hh %Mm %Ss")
 #print(now)
 
-# Tell R TO LOAD THE 3 FILES 
-part1_df <- read.csv("serv1VeraTest.csv", na.strings=c("",".","NA"))
-#part2_df <- read.csv("serv2VeraTest.csv", na.strings=c("",".","NA"))
-part3_df <- read.csv("ActvVeraCumTest.csv", na.strings=c("",".","NA"))
-dim(part1_df)
+# Tell R TO LOAD THE 3 FILES and store null values as "NA"
+part1_df <- read.csv("serv1FunderTest.csv", na.strings=c("",".","NA"))
+part2_df <- read.csv("serv2FunderTest.csv", na.strings=c("",".","NA"))
+part3_df <- read.csv("ActvFunderCumTest.csv", na.strings=c("",".","NA"))
+
+#Uncomment this chunk to verify results when troubleshooting
+#dim(part1_df)
 #dim(part2_df)
-dim(part3_df)
-names(part3_df)
-names(part1_df)
+#dim(part3_df)
+#names(part3_df)
+#names(part1_df)
 
 # THEN REMOVE ADDITIONAL columns FROM ACTIVITIES FILE. 
 part3_df <- subset(part3_df, select = -c(Active, Activity.Creator, Activity.Date))
 dim(part3_df)
-# THEN COMBINE THE 3 DATASETS with rbind?
+
+# THEN COMBINE THE 3 DATASETS with rbind
 #?rbind
 megafile_df <- rbind(part1_df, part3_df, make.row.names = TRUE)
 class(megafile_df)
 
-# Tell R to read the main services data report as well as other more 
-# focused report files from the directory.
-#### original_main_df <- read.csv("VeraMonthlyTest.csv") ####
+# Store a megafile under another name. Can compare working file edits to megafile when troubleshooting
 original_main_df <- megafile_df
 
-# alternatively 
-#original_main_df <- read.csv("VeraMonthlyTest.csv", na.strings=c(""," ","NA") )
-activities_df <- read.csv("VeraActivitiesTest.csv")
-HasAttny_df <- read.csv("VeraAlertHasAttorneyTest.csv")
+# Grab smaller datasets that are needed to produce the final file.
+# Activities will be used to mark if and when certain services were provided
+# Has attorney and litigation are used to write over nulls in the main file when true.
+activities_df <- read.csv("FunderActivitiesTest.csv")
+HasAttny_df <- read.csv("FunderAlertHasAttorneyTest.csv")
 Litig_df <- read.csv("LitigationTest.csv")
+
+
+# Unnecessary Paranoia: Store changes under 2 new names
 main_df <- original_main_df
 main_df2 <- main_df
 
-
+#Uncomment this chunk to preview results and structure when troubleshooting
 #View(main_df)
 #str(main_df2)
 
-#Remove duplicates from MainReport and store the value as 'main_df2'
+#Remove duplicates from MainReport and store the value as 'main_df2'. Peep dimensions to see change before and after deduplication.
 dim(main_df2)
 main_df2 <- main_df2[!duplicated(main_df$Matter.Case.ID), ]
 dim(main_df2)
@@ -72,59 +78,59 @@ class(main_df2$date_first_followup)
 
 #GETTING TO KNOW THE DATA
 #List all existing variables to see what they are and if any are unnecessary
-ls()
+#ls()
 
 # Class of each variable to see if they are the same type that could help identify 
-# issues. One I noticed was the a_num variable was a list as opposed to the ra_num  
+# issues. One I noticed was the z_num variable was a list as opposed to the rz_num  
 #which was a dataframe so I converted it. IDK if that did anything b.c same results.
-class(main_df2$a_number)
+class(main_df2$z_number)
 class(activities_uniq_df)
 class(main_df2)
 class(now)
 
 
-#USING REPORTING A# WHENEVER IT IS PRESENT AND A# WHEN THERE ISN'T A REPORTING A#
-# First Remove hyphens from a number fields and store the column as integers
+#USING REPORTING Z# WHENEVER IT IS PRESENT AND Z# WHEN THERE ISN'T A REPORTING Z#
+# First Remove hyphens from Z Number fields and store the column as integers
 
-main_df2$Reporting.A.Number <- as.integer( gsub("-", "", main_df2$Reporting.A.Number))
-main_df2$a_number <- as.integer( gsub("-", "", main_df2$a_number))
+main_df2$Reporting.Z.Number <- as.integer( gsub("-", "", main_df2$Reporting.Z.Number))
+main_df2$z_number <- as.integer( gsub("-", "", main_df2$z_number))
 
 #Remove updated A-Number-duplicates from MainReport and store the value as 'main_df2'
 dim(main_df2)
-main_df2 <- main_df2[!duplicated(main_df$a_number), ]
+main_df2 <- main_df2[!duplicated(main_df$z_number), ]
 dim(main_df2)
 
 #Do same hyphen process for the activities dataset and the case alerts dataset!
 names(activities_uniq_df)
-activities_uniq_df$Reporting.A.Number <- as.integer( gsub("-", "", activities_uniq_df$Reporting.A.Number))
-activities_uniq_df$A.Number <- as.integer( gsub("-", "", activities_uniq_df$A.Number))
+activities_uniq_df$Reporting.Z.Number <- as.integer( gsub("-", "", activities_uniq_df$Reporting.Z.Number))
+activities_uniq_df$Z.Number <- as.integer( gsub("-", "", activities_uniq_df$Z.Number))
 
-HasAttny_df$Reporting.A.Number <- as.integer( gsub("-", "", HasAttny_df$Reporting.A.Number))
-HasAttny_df$a_number <- as.integer( gsub("-", "", HasAttny_df$a_number))
-
-
-#Use Coalesce to create a new column that contains the NEW A NUMBERS 
-main_df2$new_a_number <- dplyr::coalesce(main_df2$Reporting.A.Number, main_df2$a_number)
-#view(head(main_df2$new_a_number, 30))
-
-activities_uniq_df$new_a_number <- dplyr::coalesce(activities_uniq_df$Reporting.A.Number, activities_uniq_df$a_number)
-#view(head(activities_uniq_df$new_a_number, 30))
-
-HasAttny_df$new_a_number <- dplyr::coalesce(HasAttny_df$Reporting.A.Number, HasAttny_df$a_number)
-#view(head(HasAttny_df$new_a_number, 30))
+HasAttny_df$Reporting.Z.Number <- as.integer( gsub("-", "", HasAttny_df$Reporting.Z.Number))
+HasAttny_df$z_number <- as.integer( gsub("-", "", HasAttny_df$z_number))
 
 
-#Step 5 h-j.  Rename "Sponsor Intake (FollowUp)" as "FollowUp"; Rename "Released Referral- Letter to child" as "Gave NGO Tel #s"
+#Use Coalesce to create a new column that contains the NEW Z NumberS 
+main_df2$new_z_number <- dplyr::coalesce(main_df2$Reporting.Z.Number, main_df2$z_number)
+#view(head(main_df2$new_z_number, 30))
+
+activities_uniq_df$new_z_number <- dplyr::coalesce(activities_uniq_df$Reporting.Z.Number, activities_uniq_df$z_number)
+#view(head(activities_uniq_df$new_z_number, 30))
+
+HasAttny_df$new_z_number <- dplyr::coalesce(HasAttny_df$Reporting.Z.Number, HasAttny_df$z_number)
+#view(head(HasAttny_df$new_z_number, 30))
+
+
+#Step 5 h-j.  Rename "Sponsor Intake (FollowUp)" as "FollowUp"; Rename "Released Referral- Letter to joven" as "Gave NGO Tel #s"
 activities_uniq_df$Item <- as.character( gsub("Sponsor Intake (Follow Up)", "Follow Up", activities_uniq_df$Item))
-activities_uniq_df$Item <- as.character( gsub("Released Referral- Letter to child", "Gave NGO Tel #s", activities_uniq_df$Item))
+activities_uniq_df$Item <- as.character( gsub("Released Referral- Letter to joven", "Gave NGO Tel #s", activities_uniq_df$Item))
 
-#Re-Sort data by Activity Item, Activity Date oldest on top, CaseID lowest on top, then A# lowest 
+#Re-Sort data by Activity Item, Activity Date oldest on top, CaseID lowest on top, then Z# lowest 
 #on top as well.
-# Re-Sort dataframe by Activity Item (ascending), Activity Date (ascending), CaseID(ascending), and A# (ascending).
+# Re-Sort dataframe by Activity Item (ascending), Activity Date (ascending), CaseID(ascending), and Z# (ascending).
 # if you wanted to sort with descending just add a "-" (minus) in front of the data frame name no space
 #view(head(activities_uniq_df, 50))
 activities_uniq_df <- activities_uniq_df[order(activities_uniq_df$Item, activities_uniq_df$Activity.Date,
-                                            activities_uniq_df$Case.ID, activities_uniq_df$new_a_number),]
+                                            activities_uniq_df$Case.ID, activities_uniq_df$new_z_number),]
 #view(head(activities_uniq_df, 50))
 
 # FORMAT THE DATE to American style baby! 
@@ -145,7 +151,7 @@ FollowUpSub <- activities_uniq_df[activities_uniq_df$Item == "Follow Up",]
 COVCOASub <- activities_uniq_df[activities_uniq_df$Item == "COV / COA Assistance",]
 
 #Create a subset of the main activities_uniq dataframe that only contains "Gave NGO Tel #s" activities.
-#Note this is intentionally happening after Letters to Child were renamed as Gave NGOs.
+#Note this is intentionally happening after Letters to joven were renamed as Gave NGOs.
 NGOListSub <- activities_uniq_df[activities_uniq_df$Item == "Gave NGO Tel #s",]
 
 #Create a subset of the main activities_uniq dataframe that only contains "LOPC Referral" activities. 
@@ -157,11 +163,11 @@ OtherNGOSub <- activities_uniq_df[activities_uniq_df$Item == "Released Referral-
 #Create a subset of the main activities_uniq dataframe that only contains "Referral Private" activities. 
 RefPrivAttySub <- activities_uniq_df[activities_uniq_df$Item == "Released Referral- Private Attorney",]
 
-#Create a subset of the main activities_uniq dataframe that only contains "Referral UCORD" activities. 
-RefUCORDSub <- activities_uniq_df[activities_uniq_df$Item == "Released Referral- UCORD",]
+#Create a subset of the main activities_uniq dataframe that only contains "Referral RODUC" activities. 
+RefRODUCSub <- activities_uniq_df[activities_uniq_df$Item == "Released Referral- RODUC",]
 
-#Create a subset of the main activities_uniq dataframe that only contains "Young Center" activities. 
-RefYoungCSub <- activities_uniq_df[activities_uniq_df$Item == "Young Center Referral",]
+#Create a subset of the main activities_uniq dataframe that only contains "Joven Facility" activities. 
+RefJovenFSub <- activities_uniq_df[activities_uniq_df$Item == "Joven Facility Referral",]
 
 #view(tail(NGOListSub))
 
@@ -189,11 +195,7 @@ class(main_df2$Activity.Date)
 main_df2$date_first_followup <-as.Date(main_df2$date_first_followup, format = "%m/%d/%Y")
 class(main_df2$date_first_followup)
 
-
-
 #class(main_df2$date_first_followup) <- "Date"
-
-
 
 #Finally do the actual replacing process
 main_df2$date_first_followup <-
@@ -208,7 +210,7 @@ main_df2$date_first_followup <-
     )
   )
 
-#The above step messes with followup date format again so may have to re-class it. Question for Celia, does
+#The above step messes with followup date format again so may have to re-class it. Question to explore, does
 #the format of dates affect what date is considered less than or greatear than another?
 class(main_df2$date_first_followup) <- "Date"
 
@@ -491,37 +493,37 @@ dim(main_df2)
 
 summary(main_df2$date_pr_referral_pvr)
 
-print('Private Attorney Referral Import Complete!! Now UCORD Referrals')
+print('Private Attorney Referral Import Complete!! Now RODUC Referrals')
 
 
-#***UCORD Referrals***
+#***RODUC Referrals***
 
 #1st do a Precheck of what the values look like before importing
-which(colnames(main_df2) == "date_pr_referral_vera")
+which(colnames(main_df2) == "date_pr_referral_Funder")
 which(colnames(main_df2) == "client_fname")
 
 main_df2[c(9230:9250, 57010), c(12, 99)]
 names(main_df2[c(12, 99)])
 
 #2nd pull all of the desired fields in
-main_df2 <- merge(main_df2, RefUCORDSub[ , c("Item", "Activity.Date", "Case.ID")],
+main_df2 <- merge(main_df2, RefRODUCSub[ , c("Item", "Activity.Date", "Case.ID")],
                   by.x = "Matter.Case.ID.", by.y = "Case.ID", all.x = TRUE)
 
-#3rd Re-Format the activity and UCORD Referral dates because the merge causes date to go back to factor
+#3rd Re-Format the activity and RODUC Referral dates because the merge causes date to go back to factor
 main_df2$Activity.Date <-as.Date(main_df2$Activity.Date, format = "%m/%d/%Y")
 class(main_df2$Activity.Date)
 
-main_df2$date_pr_referral_vera <-as.Date(main_df2$date_pr_referral_vera, format = "%m/%d/%Y")
-class(main_df2$date_pr_referral_vera)
+main_df2$date_pr_referral_Funder <-as.Date(main_df2$date_pr_referral_Funder, format = "%m/%d/%Y")
+class(main_df2$date_pr_referral_Funder)
 
-#class(main_df2$date_pr_referral_vera) <- "Date"
+#class(main_df2$date_pr_referral_Funder) <- "Date"
 
 
 #Finally do the actual replacing process
-main_df2$date_pr_referral_vera <- main_df2$Activity.Date
+main_df2$date_pr_referral_Funder <- main_df2$Activity.Date
 
-#The above step messes with UCORD Referral date format again so may have to re-class it. 
-class(main_df2$date_pr_referral_vera) <- "Date"
+#The above step messes with RODUC Referral date format again so may have to re-class it. 
+class(main_df2$date_pr_referral_Funder) <- "Date"
 
 #Confirm successful replacements
 
@@ -531,43 +533,43 @@ names(main_df2[c(12, 99)])
 dim(main_df)
 dim(main_df2)
 
-# REMOVE additional columns created during the subset merge for UCORD
+# REMOVE additional columns created during the subset merge for RODUC
 main_df2 <- subset(main_df2, select = -c(Activity.Date, Item))
 dim(main_df2)
 
-summary(main_df2$date_pr_referral_vera)
+summary(main_df2$date_pr_referral_Funder)
 
-print('UCORD Referral Import Complete!! Last but not least... Child Advocate (Young Center) Referrals')
+print('RODUC Referral Import Complete!! Last but not least... Advocate (Joven Facility) Referrals')
 
 
-#***Young Center Referrals***
+#***Joven Facility Referrals***
 
 #1st do a Precheck of what the values look like before importing
-which(colnames(main_df2) == "date_childadvocate")
+which(colnames(main_df2) == "date_jovenadvocate")
 which(colnames(main_df2) == "client_fname")
 
 main_df2[c(77230:77250, 79010), c(12, 97)]
 names(main_df2[c(12, 97)])
 
 #2nd pull all of the desired fields in
-main_df2 <- merge(main_df2, RefYoungCSub[ , c("Item", "Activity.Date", "Case.ID")],
+main_df2 <- merge(main_df2, RefJovenFSub[ , c("Item", "Activity.Date", "Case.ID")],
                   by.x = "Matter.Case.ID.", by.y = "Case.ID", all.x = TRUE)
 
-#3rd Re-Format the activity and Young Center Referral dates because the merge causes date to go back to factor
+#3rd Re-Format the activity and Joven Facility Referral dates because the merge causes date to go back to factor
 main_df2$Activity.Date <-as.Date(main_df2$Activity.Date, format = "%m/%d/%Y")
 class(main_df2$Activity.Date)
 
-main_df2$date_childadvocate <-as.Date(main_df2$date_childadvocate, format = "%m/%d/%Y")
-class(main_df2$date_childadvocate)
+main_df2$date_jovenadvocate <-as.Date(main_df2$date_jovenadvocate, format = "%m/%d/%Y")
+class(main_df2$date_jovenadvocate)
 
-#class(main_df2$date_childadvocate) <- "Date"
+#class(main_df2$date_jovenadvocate) <- "Date"
 
 
 #Finally do the actual replacing process
-main_df2$date_childadvocate <- main_df2$Activity.Date
+main_df2$date_jovenadvocate <- main_df2$Activity.Date
 
-#The above step messes with Young Center Referral date format again so may have to re-class it. 
-class(main_df2$date_childadvocate) <- "Date"
+#The above step messes with Joven Facility Referral date format again so may have to re-class it. 
+class(main_df2$date_jovenadvocate) <- "Date"
 
 #Confirm successful replacements
 
@@ -578,13 +580,13 @@ dim(main_df)
 dim(main_df2)
 
 
-# REMOVE additional columns created during the subset merge for Young Center
+# REMOVE additional columns created during the subset merge for Joven Facility
 main_df2 <- subset(main_df2, select = -c(Activity.Date, Item))
 dim(main_df2)
 
-summary(main_df2$date_childadvocate)
+summary(main_df2$date_jovenadvocate)
 
-print('Young Center Referral Import Complete!! ALL DATE IMPORTS COMPLETE!!!!!!!')
+print('Joven Facility Referral Import Complete!! ALL DATE IMPORTS COMPLETE!!!!!!!')
 
 
 
@@ -592,7 +594,7 @@ print('Young Center Referral Import Complete!! ALL DATE IMPORTS COMPLETE!!!!!!!'
 
 
 #1st do a Precheck of what the values look like before importing
-#which(colnames(main_df2) == "date_childadvocate")
+#which(colnames(main_df2) == "date_jovenadvocate")
 #which(colnames(main_df2) == "client_fname")
 
 main_df2[c(77230:77250, 79010), c(12, 97)]
@@ -615,7 +617,7 @@ dim(main_df)
 dim(main_df2)
 summary(main_df2$already_represented)
 
-# REMOVE additional columns created during the subset merge for Young Center
+# REMOVE additional columns created during the subset merge for Joven Facility
 main_df2 <- subset(main_df2, select = -c(HasAttorney))
 dim(main_df2)
 
@@ -626,13 +628,13 @@ main_df2$declined_rep <-ifelse(is.na(main_df2$declined_rep), FALSE, main_df2$dec
 class(main_df2$declined_rep)
 summary(main_df2$declined_rep)
 
-#### Correct the Shelter names. Remove Deactivated phrase, remove the star from Harlingen ####
+#### Correct the Shelter names. Remove Deactivated phrase, remove the star from Harlo ####
 main_df2$ult_facility <- as.factor( gsub(" (deactivated TS 1.4.17)", "", main_df2$ult_facility))
 main_df2$ult_facility <- as.factor( gsub("(deactivated)", "", main_df2$ult_facility))
 main_df2$ult_facility <- as.factor( gsub(" Shelter", "", main_df2$ult_facility))
 main_df2$ult_facility <- as.factor( gsub(" TS 1.4.17", "", main_df2$ult_facility))
 main_df2$ult_facility <- as.factor( gsub("Soutwest", "Southwest", main_df2$ult_facility))
-main_df2$ult_facility <- as.factor( gsub("BCFS Harlingen ", "BCFS - Harlingen", main_df2$ult_facility))
+main_df2$ult_facility <- as.factor( gsub("BCFS Harlo ", "BCFS - Harlo", main_df2$ult_facility))
 main_df2$ult_facility <- as.factor( gsub("LSSS - New Hope Renamed to Upbring New Hope", "Upbring New Hope", main_df2$ult_facility))
 main_df2$ult_facility <- as.factor( gsub("\\(", "", main_df2$ult_facility))
 main_df2$ult_facility <- as.factor( gsub("\\)", "", main_df2$ult_facility))
@@ -785,7 +787,7 @@ main_df2 <- main_df2 %>%
 which(colnames(main_df2) == "NoKYR_10days")
 main_df2[c(45013:45030, 61016), c(12, 27)]
 
-##### Erase all NA's from NoKYR_10Days; commenting this section out because Vera prefers NA's everywhere ####
+##### Erase all NA's from NoKYR_10Days; commenting this section out because Funder prefers NA's everywhere ####
 
 # main_df2$NoKYR_10days <- ifelse( is.na(main_df2$NoKYR_10days),
 #                                  "",
@@ -888,8 +890,6 @@ main_df2 <- main_df2 %>%
 
 summary(as.factor(main_df2$pot_rel1))
 #str(main_df2)
-
-
 
 #
 length(main_df2)
@@ -1027,7 +1027,7 @@ main_df2 <- main_df2 %>%
 class(main_df2$withdraw_vol_priv)
 summary(main_df2$withdraw_vol_priv)
 
-#8 More Fields!! counsel_acpt_date_VTC	date_vol_ngo_VTC	date_vol_privq_VTC	VTC_courtass_1	VTC_courtass_2	VTC_courtass_3	VTC_courtass_4	VTC_courtass_5
+#Update, now have to incorporate 8 More Fields!! counsel_acpt_date_VTC	date_vol_ngo_VTC	date_vol_privq_VTC	VTC_courtass_1	VTC_courtass_2	VTC_courtass_3	VTC_courtass_4	VTC_courtass_5
 #counsel_acpt_date_VTC
 main_df2 <- main_df2 %>%
   
@@ -1116,26 +1116,20 @@ main_df2 <- main_df2 %>%
 summary(as.factor(main_df2$VTC_courtass_5))
 
 
-
-
-
-
-
-
 #### Erase All Fields that DON'T get reported ####
 length(main_df2)
-main_df2$a_number  <-main_df2$new_a_number
-main_df2 <- subset(main_df2, select = -c(Disposition, record_created, A.Number,	Reporting.A.Number))
+main_df2$z_number  <-main_df2$new_z_number
+main_df2 <- subset(main_df2, select = -c(Disposition, record_created, Z.Number,	Reporting.Z.Number))
 names(main_df2)[names(main_df2) == 'Matter.Case.ID.'] <- 'db_id'
 
 length(main_df2)
 
-main_df2 <- subset(main_df2, select = -c(Facility.DOE...For.data.integrity.only, Potential.relief..kids.attny.assessment.review.,
-                                         Prescreen.User,	Intake.User, Historical.KYR.Date, new_a_number,
+main_df2 <- subset(main_df2, select = -c(Facility.DOE...For.data.integrity.only, Potential.relief..jovens.attny.assessment.review.,
+                                         Prescreen.User,	Intake.User, Historical.KYR.Date, new_z_number,
                                          daysTilKYR,	daysTilScreen))
 length(main_df2)
 
-# Change all "Harlingen*" values to just "Harlingen
+# Change all "Harlo*" values to just "Harlo
 summary(main_df2$jurisdiction)
 main_df2$jurisdiction <- as.character(gsub("[*]", "", main_df2$jurisdiction))  
 summary(as.factor(main_df2$jurisdiction))
@@ -1328,32 +1322,11 @@ class(main_df2$date_first_indiv)
 class(main_df2$pot_rel1)
 class(main_df2$pot_rel1) <- "Factor"
 class(main_df2$pot_rel1)
-# # Format 8 digit A#s as characters with the leading 0. This  didn't work. Nor did an as.character  paste0 approach work.
-#summary(main_df2$a_number)
-#class(main_df2$a_number)
-#main_df2$a_number <- formatC(main_df2$a_number, width = 9, format = "d", flag = "0")
-# 
+# # Format 8 digit Z#s as characters with the leading 0. This  didn't work. Nor did an as.character  paste0 approach work.
+#summary(main_df2$z_number)
+#class(main_df2$z_number)
+#main_df2$z_number <- formatC(main_df2$z_number, width = 9, format = "d", flag = "0")
 
-
-
-# A tibble: 15 x 2
-# pot_rel1                 name_count
-# <chr>                         <int>
-# 1 ASYLUM                         8154
-# 2 ASYLUM WITHHOLDING               30
-# 3 CITIZENSHIP                       2
-# 4 DACA                              3
-# 5 Family Petition                  22
-# 6 OTHER                           143
-# 7 PENDING                         545
-# 8 Prosecutorial Discretion          2
-# 9 SIJ                            7196
-# 10 T VISA                           43
-# 11 TPS                               2
-# 12 U VISA                           32
-# 13 UNKNOWN                       19655
-# 14 VAWA                              1
-# 15 NA                            30738 #actually took these out with the is.na... something
 
 df_sumsum <-
   df_summary[!is.na(main_df2$pot_rel1),]
@@ -1389,13 +1362,13 @@ p2.3
 ## (2) Bar plot on original data frame (not summarised)
 p1 <- ggplot(main_df2[!is.na(main_df2$pot_rel1),], aes(main_df2$pot_rel1[!is.na(main_df2$pot_rel1)]), )      +
   geom_bar()             + # 'stat' isn't needed here.
-  labs(x = 'Potential Relief', 'count of children' , y = 'count of children') +
+  labs(x = 'Potential Relief', 'count of jovenren' , y = 'count of jovenren') +
   geom_text( stat = 'count', aes(label = ..count..), vjust = -1) +
   ggtitle('Cumulative Pot_Rels')
 
 p2 <- ggplot(main_df2[!is.na(main_df2$pot_rel1),], aes(main_df2$pot_rel1[!is.na(main_df2$pot_rel1)]), )      +
   geom_bar()             + # 'stat' isn't needed here.
-  labs(x = 'Potential Relief' , y = 'count of children', ordered('count of children')) +
+  labs(x = 'Potential Relief' , y = 'count of jovenren', ordered('count of jovenren')) +
   geom_text( stat = 'count', aes(label = ..count..), vjust = -1) +
   ggtitle('Cumulative Pot_Rels')
 
@@ -1405,22 +1378,6 @@ help(geom_bar)
 
 
 
-# # Three years ago, we launched the great American comeback. Tonight, I stand before you to share the incredible results. 
-# Jobs are booming, incomes are soaring, poverty is plummeting, crime is falling, confidence is surging, and our country is thriving 
-# and highly respected again! America's enemies are on the run, America's fortunes are on the rise, and America's future is blazing bright.
-#
-# The years of economic decay are over. The days of our country being used, taken advantage of, and even scorned by other nations are long 
-# behind us. Gone too are the broken promises, jobless recoveries, tired platitudes, and constant excuses for the depletion of American wealth, 
-# power, and prestige.
-#
-# In just 3 short years, we have shattered the mentality of American decline, and we have rejected the downsizing of America's destiny. 
-# We are moving forward at a pace that was unimaginable just a short time ago, and we are never going back! I am thrilled to report to you 
-# tonight that our economy is the best it has ever been. Our military is completely rebuilt, with its power being unmatched anywhere in the 
-# world - and it is not even close. Our borders are secure. Our families are flourishing. Our values are renewed. Our pride is restored. And 
-# for all these reasons, I say to the people of our great country, and to the Members of Congress before me: The State of our Union is stronger 
-# than ever before!
-# 
-# 
 # 
 # 
 #---------------------------------------------------------------------------------------------------------
@@ -1440,8 +1397,8 @@ help(geom_bar)
 #View(main_df2)
 #Store current timestamp as 'now' to use in file name
 now <- format(Sys.time(), format = "%m.%d.%Y.%Hh %Mm %Ss")
-file_name <- paste0("Vera_Automation_Test", now, ".csv" )
-file_name_act <- paste0("Vera_Activities_Test", now, ".csv" )
+file_name <- paste0("Funder_Automation_Test", now, ".csv" )
+file_name_act <- paste0("Funder_Activities_Test", now, ".csv" )
 file_name_vlook <- paste0("Vlook_Test", now, ".csv" )
 
 #print(file_name)
